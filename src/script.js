@@ -54,8 +54,12 @@ export async function getAccessToken(code) {
     const { access_token, refresh_token } = await result.json();
 
     console.log(access_token);
+    console.log(refresh_token);
+
+    localStorage.setItem('refreshToken', refresh_token);
+    localStorage.setItem('accessToken', access_token);
     
-    return {access_token, refresh_token};
+    return access_token;
 }
 
 export async function refreshAccessToken() {
@@ -76,8 +80,13 @@ export async function refreshAccessToken() {
         body: params
     });
 
-    const { access_token } = await result.json();
+    
+
+    const { access_token, refresh_token } = await result.json();
     localStorage.setItem('accessToken', access_token); // Save the new access token
+    localStorage.setItem('refreshToken', refresh_token); // Save the new access token
+
+    console.log('new access tokens saved');
     return access_token;
 }
 

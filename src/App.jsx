@@ -11,22 +11,18 @@ function App() {
       
 
       async function authenticate() {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
 
-      if (!code) {
-        redirectToAuthCodeFlow();
-        
-      } else {
-        
-
-        const {accessToken, refreshToken} = await getAccessToken(code);
-        
-        setToken(accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('accessToken', accessToken);
-        
-      }
+        if (!code) {
+          redirectToAuthCodeFlow();
+          
+        } else {
+          const accessToken = await getAccessToken(code);
+          setToken(accessToken);
+          
+          
+        }
     }
 
   
@@ -34,7 +30,7 @@ function App() {
     const storedToken = localStorage.getItem('accessToken');
     
     if (storedToken && storedToken !== 'undefined') {
-      
+      refreshAccessToken();
       setToken(storedToken);
     } else {
       authenticate();
