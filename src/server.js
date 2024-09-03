@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Sequelize, DataTypes } from 'sequelize';
+const logoutTimers = new Map(); // To store logout timers by refresh token
 
 // Load environment variables from a .env file
 dotenv.config();
@@ -98,18 +99,21 @@ app.get('/api/callback', async (req, res) => {
             }
         );
 
-        const { access_token, refresh_token } = response.data;
+        const { access_token, refresh_token, expires_in } = response.data;
+        const expiresAt = new Date(Date.now() + expires_in * 1000);
 
         // Store the tokens in PostgreSQL
         await Token.create({
-            refresh_token,
-            access_token
-        });
+            refresh_token ,
+            access_token,
+            expiresAt,
+        }); 
 
         res.cookie('refreshToken', refresh_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'Strict',
+            path: '/',
         });
 
         res.redirect('http://localhost:5173'); // Redirect to the React app
@@ -121,7 +125,7 @@ app.get('/api/callback', async (req, res) => {
     
 
 
-app.post('/api/refresh-token', async (req, res) => {
+app.get('/api/check-token', async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
@@ -129,16 +133,26 @@ app.post('/api/refresh-token', async (req, res) => {
     }
 
     try {
-        const tokenData = await Token.findOne({ where: { refresh_token: refreshToken } });
+        // Fetch the token details from the database
+        const tokenRecord = await Token.findOne({ where: { refresh_token: refreshToken } });
 
-        if (!tokenData) {
-            return res.status(400).send('Invalid refresh token');
+        if (!tokenRecord) {
+            return res.status(401).send('No token found');
         }
 
-        res.json({ access_token: tokenData.access_token });
+        // Cancel the logout if it was scheduled
+        if (logoutTimers.has(refreshToken)) {
+            clearTimeout(logoutTimers.get(refreshToken));
+            logoutTimers.delete(refreshToken);
+            console.log(`Logout canceled for refresh token ${refreshToken}.`);
+        }
+
+        // Return the access token if valid
+        const { access_token } = tokenRecord;
+        return res.json({ accessToken: access_token });
     } catch (error) {
-        console.error(error);
-        res.status(500).send('Failed to refresh token');
+        console.error('Error checking token:', error);
+        res.status(500).send('Failed to check or refresh token');
     }
 });
 
@@ -222,26 +236,29 @@ app.post('/api/logout', async (req, res) => {
         return res.status(400).send('No refresh token available');
     }
 
-    try {
-        // Delete the token from the database
-        await Token.destroy({
-            where: { refresh_token: refreshToken }
-        });
-
-        // Clear the refresh token cookie
-        res.clearCookie('refreshToken', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
-        });
-
-        res.status(200).send('Logged out successfully');
-    } catch (error) {
-        console.error('Failed to log out', error);
-        res.status(500).send('Failed to log out');
+    // Check if there's already a pending deletion
+    if (logoutTimers.has(refreshToken)) {
+        // Cancel the previous timer
+        clearTimeout(logoutTimers.get(refreshToken));
     }
-});
 
+    // Set a timer to delete the token after 10 seconds
+    const timer = setTimeout(async () => {
+        try {
+            await Token.destroy({ where: { refresh_token: refreshToken } });
+            console.log(`Token with refresh token ${refreshToken} deleted.`);
+        } catch (error) {
+            console.error('Failed to delete token', error);
+        } finally {
+            logoutTimers.delete(refreshToken); // Clean up the timer map
+        }
+    }, 10000); // 10 seconds delay
+
+    logoutTimers.set(refreshToken, timer);
+
+    // Respond immediately to the logout request
+    res.status(200).send('Logout initiated. Token will be deleted if no return within 10 seconds.');
+});
 
 app.listen(process.env.PORT, () => {
     console.log(`Server running on port ${process.env.PORT}`);

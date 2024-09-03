@@ -1,51 +1,64 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios'
+
+
 
 function App() {
     const [playlistId, setPlaylistId] = useState('');
     const [numTracks, setNumTracks] = useState(10);
-
-
+    const [loading, setLoading] = useState(true);
+    const [accessToken, setAccessToken] = useState(null);
+   
 
     useEffect(() => {
-        async function checkAuth() {
-            if (window.location.pathname !== '/login') {
-                try {
-                    const response = await fetch('/api/refresh-token', { method: 'POST', credentials: 'include' });
-                    if (!response.ok) {
-                        window.location.href = '/api/login'; // Redirect to login if no token is available
-                    }
-                } catch (error) {
-                    console.error('Failed to authenticate', error);
+        const checkToken = async () => {
+            try {
+                const response = await axios.get('/api/check-token', {withCredentials: true });
+                setAccessToken(response.data.accessToken);
+            } catch (error) {
+
+                console.error('Error checking token:', error.response ? error.response.data : error.message);
+
+                if (window.location.pathname !== '/login') {
                     window.location.href = '/api/login';
-                }
-            } 
-        }
-    
-        checkAuth();
+                } 
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        checkToken();
     }, []);
-    
 
     useEffect(() => {
-      const handleLogout = async () => {
+        if (loading || !accessToken) {
+            return; // or show a loading spinner
+        }
+    }, []);
+
+    useEffect(() => {
+        const handlePageUnload = async () => {
           try {
-              await fetch('/api/logout', { method: 'POST' });
+            await fetch('/api/logout', { method: 'POST', });
           } catch (error) {
-              console.error('Failed to log out', error);
+            console.error('Failed to notify backend on page unload', error);
           }
-      };
-  
-      window.addEventListener('beforeunload', handleLogout);
-  
-      return () => {
-          window.removeEventListener('beforeunload', handleLogout);
-      };
-  }, []);
+        };
+    
+        window.addEventListener('beforeunload', handlePageUnload);
+    
+        return () => {
+          window.removeEventListener('beforeunload', handlePageUnload);
+        };
+      }, []);
+    
 
     async function fetchFromBackend(endpoint, method = 'GET', body = null) {
         const response = await fetch(`/api/spotify${endpoint}`, {
             method,
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
             },
             body: body ? JSON.stringify(body) : null,
         });
