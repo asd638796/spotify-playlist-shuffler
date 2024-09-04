@@ -103,7 +103,7 @@ app.get('/api/callback', async (req, res) => {
         const expiresAt = new Date(Date.now() + expires_in * 1000);
 
         // Store the tokens in PostgreSQL
-        await Token.create({
+        await Token.upsert({
             refresh_token ,
             access_token,
             expiresAt,
@@ -114,6 +114,7 @@ app.get('/api/callback', async (req, res) => {
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'Strict',
             path: '/',
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days,
         });
 
         res.redirect('http://localhost:5173'); // Redirect to the React app
@@ -140,13 +141,6 @@ app.get('/api/check-token', async (req, res) => {
             return res.status(401).send('No token found');
         }
 
-        // Cancel the logout if it was scheduled
-        if (logoutTimers.has(refreshToken)) {
-            clearTimeout(logoutTimers.get(refreshToken));
-            logoutTimers.delete(refreshToken);
-            console.log(`Logout canceled for refresh token ${refreshToken}.`);
-        }
-
         // Return the access token if valid
         const { access_token } = tokenRecord;
         return res.json({ accessToken: access_token });
@@ -157,8 +151,52 @@ app.get('/api/check-token', async (req, res) => {
 });
 
 
-app.get('/api/spotify/*', async (req, res) => {
+async function randomize(access_token, playlistId, numTracks) {
+    try {
+        // Fetch the playlist tracks
+        const playlistResponse = await axios({
+            method: 'GET',
+            url: `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+            headers: {
+                Authorization: `Bearer ${access_token}`,
+            },
+        });
+
+        const tracks = playlistResponse.data.items;
+
+        if (!tracks || tracks.length === 0) {
+            throw new Error('Playlist is empty');
+        }
+
+        // Shuffle the tracks
+        const shuffledItems = shuffleArray(tracks.map(item => item.track.uri));
+        const limitedShuffledItems = shuffledItems.slice(0, numTracks);
+
+        // Add the shuffled tracks to the user's queue
+        for (const trackUri of limitedShuffledItems) {
+            await axios({
+                method: 'POST',
+                url: `https://api.spotify.com/v1/me/player/queue?uri=${trackUri}`,
+                headers: {
+                    Authorization: `Bearer ${access_token}`,
+                },
+            });
+        }
+    } catch (error) {
+        console.error('Error in randomize:', error);
+        throw error;
+    }
+}
+
+
+
+app.post('/api/randomize', async (req, res) => {
+    const { playlistId, numTracks } = req.body;
     const refreshToken = req.cookies.refreshToken;
+
+    if (!playlistId || !numTracks) {
+        return res.status(400).send('Playlist ID and number of tracks are required');
+    }
 
     if (!refreshToken) {
         return res.status(400).send('No refresh token available');
@@ -173,21 +211,14 @@ app.get('/api/spotify/*', async (req, res) => {
     let { access_token } = tokenData;
 
     try {
-        const spotifyResponse = await axios({
-            method: req.method,
-            url: `https://api.spotify.com${req.url.replace('/api/spotify', '')}`,
-            headers: {
-                Authorization: `Bearer ${access_token}`,
-            },
-            data: req.body,
-        });
+        
+        await randomize(access_token, playlistId, numTracks);
 
-        res.status(spotifyResponse.status).json(spotifyResponse.data);
+        res.status(200).send('Songs added to queue');
     } catch (error) {
-        // Handle expired access token
-        if (error.response && error.response.status === 401) {
+        if (true) { //error.response && error.response.status === 401
             try {
-                // Refresh the access token
+                // Handle expired access token by refreshing it
                 const refreshResponse = await axios.post(
                     'https://accounts.spotify.com/api/token',
                     new URLSearchParams({
@@ -197,6 +228,7 @@ app.get('/api/spotify/*', async (req, res) => {
                     {
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
+                            'Authorization': `Basic ${Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString('base64')}`,
                         },
                     }
                 );
@@ -207,27 +239,50 @@ app.get('/api/spotify/*', async (req, res) => {
                 tokenData.access_token = access_token;
                 await tokenData.save();
 
-                // Retry the Spotify API request
-                const retryResponse = await axios({
-                    method: req.method,
-                    url: `https://api.spotify.com${req.url.replace('/api/spotify', '')}`,
-                    headers: {
-                        Authorization: `Bearer ${access_token}`,
-                    },
-                    data: req.body,
-                });
+                if (refreshResponse.data.refresh_token) {
+                    
+                    const newRefreshToken = refreshResponse.data.refresh_token;
 
-                return res.status(retryResponse.status).json(retryResponse.data);
+                    // Update the refresh token in the database
+                    tokenData.refresh_token = newRefreshToken;
+                    await tokenData.save();
+
+                    // Update the refresh token cookie
+                    res.cookie('refreshToken', newRefreshToken, {
+                        httpOnly: true,                     // Prevents access via JavaScript
+                        secure: process.env.NODE_ENV === 'production', // Send only over HTTPS in production
+                        sameSite: 'Strict',                 // Prevents CSRF by restricting cross-site cookies
+                        path: '/',                          // Cookie is available site-wide
+                        maxAge: 30 * 24 * 60 * 60 * 1000,   // 30 days expiry
+                    });
+                  }
+
+                // Retry adding shuffled tracks to the user's queue
+                await randomize(access_token, playlistId, numTracks);
+
+                console.log('---------------------- TOKEN WAS REFRESHED ----------------------');
+
+                return res.status(200).send('Songs added to queue');
             } catch (refreshError) {
                 console.error('Failed to refresh access token', refreshError);
                 return res.status(500).send('Failed to refresh access token');
             }
         } else {
             console.error('Spotify API request failed', error);
-            res.status(500).send('Spotify API request failed');
+            return res.status(500).send('Spotify API request failed');
         }
     }
 });
+
+// Helper function to shuffle the tracks
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
 
 app.post('/api/logout', async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
@@ -235,29 +290,24 @@ app.post('/api/logout', async (req, res) => {
     if (!refreshToken) {
         return res.status(400).send('No refresh token available');
     }
-
-    // Check if there's already a pending deletion
-    if (logoutTimers.has(refreshToken)) {
-        // Cancel the previous timer
-        clearTimeout(logoutTimers.get(refreshToken));
+    
+    try {
+        await Token.destroy({ where: { refresh_token: refreshToken } });
+        console.log(`Token with refresh token ${refreshToken} deleted.`);
+        
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            path: '/'  // Ensure the path matches where the cookie was set
+        });
+    } catch (error) {
+        console.error('Failed to delete token', error);
+    } finally {
+        logoutTimers.delete(refreshToken); // Clean up the timer map
     }
-
-    // Set a timer to delete the token after 10 seconds
-    const timer = setTimeout(async () => {
-        try {
-            await Token.destroy({ where: { refresh_token: refreshToken } });
-            console.log(`Token with refresh token ${refreshToken} deleted.`);
-        } catch (error) {
-            console.error('Failed to delete token', error);
-        } finally {
-            logoutTimers.delete(refreshToken); // Clean up the timer map
-        }
-    }, 10000); // 10 seconds delay
-
-    logoutTimers.set(refreshToken, timer);
-
-    // Respond immediately to the logout request
-    res.status(200).send('Logout initiated. Token will be deleted if no return within 10 seconds.');
+   
+    res.status(200).send('Logout initiated.');
 });
 
 app.listen(process.env.PORT, () => {

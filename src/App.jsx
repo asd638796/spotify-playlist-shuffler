@@ -19,7 +19,7 @@ function App() {
 
                 console.error('Error checking token:', error.response ? error.response.data : error.message);
 
-                if (window.location.pathname !== '/login') {
+                if (window.location.pathname !== '/api/login') {
                     window.location.href = '/api/login';
                 } 
             } finally {
@@ -30,46 +30,43 @@ function App() {
         checkToken();
     }, []);
 
-    useEffect(() => {
-        if (loading || !accessToken) {
-            return; // or show a loading spinner
+   
+
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/logout', { method: 'POST' });
+            setAccessToken(null);
+            window.location.href = '/api/login';
+        } catch (error) {
+            console.error('Failed to log out', error);
         }
-    }, []);
-
-    useEffect(() => {
-        const handlePageUnload = async () => {
-          try {
-            await fetch('/api/logout', { method: 'POST', });
-          } catch (error) {
-            console.error('Failed to notify backend on page unload', error);
-          }
-        };
+    };
     
-        window.addEventListener('beforeunload', handlePageUnload);
-    
-        return () => {
-          window.removeEventListener('beforeunload', handlePageUnload);
-        };
-      }, []);
-    
-
-    async function fetchFromBackend(endpoint, method = 'GET', body = null) {
-        const response = await fetch(`/api/spotify${endpoint}`, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
-            },
-            body: body ? JSON.stringify(body) : null,
-        });
-
-        if (!response.ok) {
-            console.error('Failed to fetch from backend API', response.status);
-            return null;
+    const handleRandomize = async () => {
+        if (!playlistId) {
+            alert('Please enter a playlist URL');
+            return;
         }
 
-        return await response.json();
-    }
+        try {
+            const extractedPlaylistId = extractPlaylistId(playlistId);
+            if (!extractedPlaylistId) {
+                alert('Invalid playlist URL');
+                return;
+            }
+
+            await axios.post('/api/randomize', {
+                playlistId: extractedPlaylistId,
+                numTracks: numTracks,
+            });
+
+            alert('Songs added to the queue!');
+        } catch (error) {
+            console.error('Error adding songs to the queue', error);
+            alert('Failed to add songs to the queue.');
+        }
+    };
 
     function extractPlaylistId(url) {
         const regex = /playlist\/([a-zA-Z0-9]+)(?:\?|$|\/|\&)/;
@@ -77,75 +74,58 @@ function App() {
         return match ? match[1] : null;
     }
 
-    async function handleRandomize() {
-        if (!playlistId) return;
-
-        const extractedPlaylistId = extractPlaylistId(playlistId);
-        if (!extractedPlaylistId) {
-            alert('Invalid playlist URL');
-            return;
-        }
-
-        const data = await fetchFromBackend(`/v1/playlists/${extractedPlaylistId}/tracks`);
-        if (!data || !data.items) {
-            alert('Failed to fetch playlist items or playlist is empty.');
-            return;
-        }
-
-        const shuffledItems = shuffleArray(data.items.map(item => item.track.uri));
-        const limitedShuffledItems = shuffledItems.slice(0, numTracks);
-
-        for (const trackUri of limitedShuffledItems) {
-            await fetchFromBackend(`/v1/me/player/queue?uri=${trackUri}`, 'POST');
-        }
-    }
 
     return (
-        <div className='app-body'>
-            <form className='app-form'
-                onSubmit={(e) => {
-                    e.preventDefault();
-                    handleRandomize();
-                }}
-            >
-                <input
-                    type="text"
-                    placeholder="Enter playlist URL"
-                    value={playlistId}
-                    onChange={(e) => setPlaylistId(e.target.value)}
-                />
-                <div className="form-buttons">
-                    <label>
-                        <input
-                            type="radio"
-                            value={5}
-                            checked={numTracks === 5}
-                            onChange={() => setNumTracks(5)}
-                        />
-                        5
-                    </label>
-                    <label>
-                        <input
-                            type="radio"
-                            value={10}
-                            checked={numTracks === 10}
-                            onChange={() => setNumTracks(10)}
-                        />
-                        10
-                    </label>
-                    <label>
-                        <input
-                            type="radio"
-                            value={15}
-                            checked={numTracks === 15}
-                            onChange={() => setNumTracks(15)}
-                        />
-                        15
-                    </label>
-                </div>
-                <button type="submit" className='form-button'>Randomize</button>
-            </form>
-        </div>
+        <>
+            <div>
+                <button onClick={handleLogout} className="logout-button">Logout</button>  
+            </div>
+            <div className='app-body'>
+                
+                <form className='app-form'
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        handleRandomize();
+                    }}>
+                    <input
+                        type="text"
+                        placeholder="Enter playlist URL"
+                        value={playlistId}
+                        onChange={(e) => setPlaylistId(e.target.value)}
+                    />
+                    <div className="form-buttons">
+                        <label>
+                            <input
+                                type="radio"
+                                value={5}
+                                checked={numTracks === 5}
+                                onChange={() => setNumTracks(5)}
+                            />
+                            5
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                value={10}
+                                checked={numTracks === 10}
+                                onChange={() => setNumTracks(10)}
+                            />
+                            10
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                value={15}
+                                checked={numTracks === 15}
+                                onChange={() => setNumTracks(15)}
+                            />
+                            15
+                        </label>
+                    </div>
+                    <button type="submit" className='form-button'>Randomize</button>
+                </form>
+            </div>
+        </>
     );
 }
 
