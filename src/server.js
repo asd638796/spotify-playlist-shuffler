@@ -156,7 +156,7 @@ async function randomize(access_token, playlistId, numTracks) {
         // Fetch the playlist tracks
         const playlistResponse = await axios({
             method: 'GET',
-            url: `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+            url: `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`,
             headers: {
                 Authorization: `Bearer ${access_token}`,
             },
@@ -168,9 +168,21 @@ async function randomize(access_token, playlistId, numTracks) {
             throw new Error('Playlist is empty');
         }
 
+        
+
         // Shuffle the tracks
         const shuffledItems = shuffleArray(tracks.map(item => item.track.uri));
-        const limitedShuffledItems = shuffledItems.slice(0, numTracks);
+        let limitedShuffledItems = [];
+        if(numTracks <= shuffledItems.length){
+            limitedShuffledItems = shuffledItems.slice(0, numTracks);
+        }else{
+            while (limitedShuffledItems.length < numTracks) {
+                limitedShuffledItems.push(...shuffledItems.slice(0, numTracks - limitedShuffledItems.length));
+                shuffleArray(limitedShuffledItems);
+                
+            }
+        }
+        
 
         // Add the shuffled tracks to the user's queue
         for (const trackUri of limitedShuffledItems) {
@@ -216,7 +228,7 @@ app.post('/api/randomize', async (req, res) => {
 
         res.status(200).send('Songs added to queue');
     } catch (error) {
-        if (true) { //error.response && error.response.status === 401
+        if (error.response && error.response.status === 401) { 
             try {
                 // Handle expired access token by refreshing it
                 const refreshResponse = await axios.post(

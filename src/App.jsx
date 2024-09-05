@@ -8,6 +8,9 @@ function App() {
     const [numTracks, setNumTracks] = useState(10);
     const [loading, setLoading] = useState(true);
     const [accessToken, setAccessToken] = useState(null);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    
    
 
     useEffect(() => {
@@ -17,7 +20,7 @@ function App() {
                 setAccessToken(response.data.accessToken);
             } catch (error) {
 
-                console.error('Error checking token:', error.response ? error.response.data : error.message);
+                
 
                 if (window.location.pathname !== '/api/login') {
                     window.location.href = '/api/login';
@@ -39,20 +42,20 @@ function App() {
             setAccessToken(null);
             window.location.href = '/api/login';
         } catch (error) {
-            console.error('Failed to log out', error);
+            setErrorMessage('An error occured - please try again');
         }
     };
     
     const handleRandomize = async () => {
         if (!playlistId) {
-            alert('Please enter a playlist URL');
+            setErrorMessage('An error occured - please enter a playlist URL');
             return;
         }
 
         try {
             const extractedPlaylistId = extractPlaylistId(playlistId);
             if (!extractedPlaylistId) {
-                alert('Invalid playlist URL');
+                setErrorMessage('An error occured - invalid playlist URL');
                 return;
             }
 
@@ -63,8 +66,11 @@ function App() {
 
             alert('Songs added to the queue!');
         } catch (error) {
-            console.error('Error adding songs to the queue', error);
-            alert('Failed to add songs to the queue.');
+            if (error.response && error.response.status === 500) {
+                setErrorMessage('An error occurred - make sure you are playing something when you hit randomize!');
+            } else {
+                setErrorMessage('An error occurred - please try again.');
+            }
         }
     };
 
@@ -79,6 +85,9 @@ function App() {
         <>
             <div>
                 <button onClick={handleLogout} className="logout-button">Logout</button>  
+            </div>
+            <div>
+                {errorMessage && <div style={{ color: 'red', marginBottom: '10px' }}>{errorMessage}</div>}
             </div>
             <div className='app-body'>
                 
