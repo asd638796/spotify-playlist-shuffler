@@ -1,10 +1,47 @@
+
+
+.logout-button{
+    font-size: 2vh; /* Make button text larger */
+    padding: 1vh 3vw; /* Make the button larger */
+    background-color: green; /* Make the button green */
+    color: white; /* Make the text white */
+    border: none; /* Remove default border */
+    border-radius: 1vh; /* Make the edges rounded */
+    transition: background-color 0.3s ease; /* Ease transition on click */
+    margin: 1vh;
+}
+
+
+/* Flexbox layout for centering */
+.app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+/* Logout button in top right */
+.logout {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
 .app-body {
     display: flex;
+    flex-direction: column; /* Stack items vertically */
     justify-content: center;
     align-items: center;
-    height: 100vh; /* Center the form vertically */
-    width: 100vw;  /* Center the form horizontally */
+    height: 100vh;
+    width: 100vw;
     font-family: Helvetica, sans-serif;
+    gap: 5vh; /* Space between description, form, and message */
+}
+
+.description {
+    text-align: center;
+    font-size: 1.5rem;
+    padding: 0 2vw;
 }
 
 .app-form {
@@ -14,38 +51,59 @@
     align-items: center;
     gap: 3vh;
     border: 1px solid black;
-    padding: 5vh 5vw; /* Slightly bigger by vh and vw */
-    transform: scale(1.1); /* Scale up the form slightly */
+    padding: 5vh 5vw;
+    transform: scale(1.1);
     transform-origin: center;
-}   
-
-.app-form input[type="text"] {
-    width: 20vw; /* Double the width of the input text box */
-    padding: 1vh 2vw; /* Increase padding for better spacing */
-    font-size: 2vh; /* Adjust font size for better readability */
-}   
-
-.form-buttons label {
-    font-size: 1.2rem; /* Make radio buttons slightly bigger */
-    margin: 1vh 0.3vw; /* Add some vertical margin */
 }
 
+.app-form input[type="text"] {
+    width: 20vw;
+    padding: 1vh 2vw;
+    font-size: 2vh;
+}
 
+.form-buttons label {
+    font-size: 1.2rem;
+    margin: 1vh 0.3vw;
+}
 
 .form-button {
-    font-size: 3vh; /* Make button text larger */
-    padding: 2vh 4vw; /* Make the button larger */
-    background-color: green; /* Make the button green */
-    color: white; /* Make the text white */
-    border: none; /* Remove default border */
-    border-radius: 1vh; /* Make the edges rounded */
-    transition: background-color 0.3s ease; /* Ease transition on click */
+    font-size: 3vh;
+    padding: 2vh 4vw;
+    background-color: green;
+    color: white;
+    border: none;
+    border-radius: 1vh;
+    transition: background-color 0.3s ease;
 }
 
 .form-button:hover {
-    background-color: darkgreen; /* Darken the button color on hover */
+    background-color: darkgreen;
 }
 
 .form-button:active {
-    transform: scale(0.98); /* Slightly shrink the button on click */
+    transform: scale(0.98);
+}
+
+/* Position success/error message */
+.message {
+    margin-top: 10px;
+    text-align: center;
+    transition: opacity 2s ease;
+}
+
+.message.hidden {
+    opacity: 0;
+}
+
+.message.visible {
+    opacity: 1;
+}
+
+.success-message {
+    color: green;
+}
+
+.error-message {
+    color: red;
 }

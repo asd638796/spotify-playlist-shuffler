@@ -228,6 +228,11 @@ app.post('/api/randomize', async (req, res) => {
 
         res.status(200).send('Songs added to queue');
     } catch (error) {
+
+        if (error.message === 'Playlist is empty') {
+            return res.status(499).json({ error: 'playlist is empty' });
+        }
+
         if (error.response && error.response.status === 401) { 
             try {
                 // Handle expired access token by refreshing it
@@ -272,8 +277,7 @@ app.post('/api/randomize', async (req, res) => {
                 // Retry adding shuffled tracks to the user's queue
                 await randomize(access_token, playlistId, numTracks);
 
-                console.log('---------------------- TOKEN WAS REFRESHED ----------------------');
-
+               
                 return res.status(200).send('Songs added to queue');
             } catch (refreshError) {
                 console.error('Failed to refresh access token', refreshError);

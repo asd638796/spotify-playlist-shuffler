@@ -7,9 +7,9 @@ function App() {
     const [playlistId, setPlaylistId] = useState('');
     const [numTracks, setNumTracks] = useState(10);
     const [loading, setLoading] = useState(true);
-    const [accessToken, setAccessToken] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [messageVisible, setMessageVisible] = useState(false); 
     
    
 
@@ -17,7 +17,7 @@ function App() {
         const checkToken = async () => {
             try {
                 const response = await axios.get('/api/check-token', {withCredentials: true });
-                setAccessToken(response.data.accessToken);
+                
             } catch (error) {
 
                 
@@ -42,20 +42,21 @@ function App() {
             setAccessToken(null);
             window.location.href = '/api/login';
         } catch (error) {
-            setErrorMessage('An error occured - please try again');
+            showMessage('error', 'An error occured - please enter a playlist URL');
+            return;
         }
     };
     
     const handleRandomize = async () => {
         if (!playlistId) {
-            setErrorMessage('An error occured - please enter a playlist URL');
+            showMessage('error', 'An error occured - please enter a playlist URL');
             return;
         }
 
         try {
             const extractedPlaylistId = extractPlaylistId(playlistId);
             if (!extractedPlaylistId) {
-                setErrorMessage('An error occured - invalid playlist URL');
+                showMessage('error', 'An error occured - invalid playlist URL');
                 return;
             }
 
@@ -64,14 +65,38 @@ function App() {
                 numTracks: numTracks,
             });
 
-            alert('Songs added to the queue!');
+            showMessage('success', 'Songs successfully added to queue!');            
+
         } catch (error) {
             if (error.response && error.response.status === 500) {
-                setErrorMessage('An error occurred - make sure you are playing something when you hit randomize!');
+                showMessage('error', 'An error occurred - make sure you are playing something when you hit randomize!');
+            }else if (error.response && error.response.status === 499) {
+                showMessage('error', 'An error occured - ' + error.response.data.error); 
             } else {
-                setErrorMessage('An error occurred - please try again.');
+                showMessage('error', 'An error occurred - please try again.');
             }
+
+            
         }
+    };
+
+    const hideMessageAfterDelay = () => {
+        setTimeout(() => {
+            setMessageVisible(false);
+        }, 5000); // After 5 seconds, hide the message
+    };
+
+    const showMessage = (type, message) => {
+        if (type === 'success') {
+            setErrorMessage(''); // Clear any error message
+            setSuccessMessage(message); // Set the success message
+        } else if (type === 'error') {
+            setSuccessMessage(''); // Clear any success message
+            setErrorMessage(message); // Set the error message
+        }
+    
+        setMessageVisible(true); // Show the message
+        hideMessageAfterDelay(); // Trigger fade-out after 5 seconds
     };
 
     function extractPlaylistId(url) {
@@ -83,67 +108,80 @@ function App() {
 
     return (
         <>
-            <div>
-                <button onClick={handleLogout} className="logout-button">Logout</button>  
-            </div>
-            <div>
-                {errorMessage && <div style={{ color: 'red', marginBottom: '10px' }}>{errorMessage}</div>}
-            </div>
-            <div className='app-body'>
+            <div className='app'>
+                <div className='logout'>
+                    <button onClick={handleLogout} className="logout-button">Logout</button>  
+                </div>
+
                 
-                <form className='app-form'
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        handleRandomize();
-                    }}>
-                    <input
-                        type="text"
-                        placeholder="Enter playlist URL"
-                        value={playlistId}
-                        onChange={(e) => setPlaylistId(e.target.value)}
-                    />
-                    <div className="form-buttons">
-                        <label>
-                            <input
-                                type="radio"
-                                value={5}
-                                checked={numTracks === 5}
-                                onChange={() => setNumTracks(5)}
-                            />
-                            5
-                        </label>
-                        <label>
-                            <input
-                                type="radio"
-                                value={10}
-                                checked={numTracks === 10}
-                                onChange={() => setNumTracks(10)}
-                            />
-                            10
-                        </label>
-                        <label>
-                            <input
-                                type="radio"
-                                value={15}
-                                checked={numTracks === 15}
-                                onChange={() => setNumTracks(15)}
-                            />
-                            15
-                        </label>
+
+                <div className='app-body'>
+
+                    <div className='description'>
+                        <p>
+                        This is an app that *actually* shuffles a spotify playlist you give it. 
+                        Notes: 
+                        You must be playing something before you hit randomize.
+                        There is also a limit of 100 songs, so if you try to shuffle a playlist that has a more than 100 songs, it will just choose the top 100 - im sorry but I can't do much about that.
+                        </p>
                     </div>
-                    <button type="submit" className='form-button'>Randomize</button>
-                </form>
+                    
+                    <form className='app-form'
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            handleRandomize();
+                        }}>
+                        <input
+                            type="text"
+                            placeholder="Enter playlist URL"
+                            value={playlistId}
+                            onChange={(e) => setPlaylistId(e.target.value)}
+                        />
+                        <div className="form-buttons">
+                            <label>
+                                <input
+                                    type="radio"
+                                    value={5}
+                                    checked={numTracks === 5}
+                                    onChange={() => setNumTracks(5)}
+                                />
+                                5
+                            </label>
+                            <label>
+                                <input
+                                    type="radio"
+                                    value={10}
+                                    checked={numTracks === 10}
+                                    onChange={() => setNumTracks(10)}
+                                />
+                                10
+                            </label>
+                            <label>
+                                <input
+                                    type="radio"
+                                    value={15}
+                                    checked={numTracks === 15}
+                                    onChange={() => setNumTracks(15)}
+                                />
+                                15
+                            </label>
+                        </div>
+                        <button type="submit" className='form-button'>Randomize</button>
+                    </form>
+
+                    <div className={`message ${messageVisible ? 'visible' : 'hidden'}`}>
+                        {errorMessage && <div className="error-message">{errorMessage}</div>}
+                        {successMessage && <div className="success-message">{successMessage}</div>}
+                    </div>
+                </div>
+
+                
             </div>
+            
         </>
     );
 }
 
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
+
 
 export default App;
