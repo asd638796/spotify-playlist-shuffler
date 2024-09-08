@@ -68,9 +68,7 @@ function App() {
             showMessage('success', 'Songs successfully added to queue!');            
 
         } catch (error) {
-            if (error.response && error.response.status === 500) {
-                showMessage('error', 'An error occurred - make sure you are playing something when you hit randomize!');
-            }else if (error.response && error.response.status === 499) {
+            if (error.response && error.response.status === 499) {
                 showMessage('error', 'An error occured - ' + error.response.data.error); 
             } else {
                 showMessage('error', 'An error occurred - please try again.');
