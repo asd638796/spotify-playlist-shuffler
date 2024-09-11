@@ -39,10 +39,10 @@ function App() {
     const handleLogout = async () => {
         try {
             await fetch('/api/logout', { method: 'POST' });
+            setAccessToken(null);
             window.location.href = '/api/login';
         } catch (error) {
-            showMessage('error', 'An error occured - please try again');
-            console.log(error);
+            showMessage('error', 'An error occured - please enter a playlist URL');
             return;
         }
     };

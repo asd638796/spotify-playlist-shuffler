@@ -128,7 +128,6 @@ app.get('/api/callback', async (req, res) => {
 
 app.get('/api/check-token', async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
-    
 
     if (!refreshToken) {
         return res.status(400).send('No refresh token available');
