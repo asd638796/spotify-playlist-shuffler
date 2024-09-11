@@ -5,6 +5,9 @@ import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Sequelize, DataTypes } from 'sequelize';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 const logoutTimers = new Map(); // To store logout timers by refresh token
 
 // Load environment variables from a .env file
@@ -13,6 +16,17 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 app.use(cookieParser());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static files from the 'dist' directory
+app.use(express.static('/app/dist/index.html'));
+
+// Catch-all route to serve the frontend
+app.get('*', (req, res) => {
+    res.sendFile('/app/dist/index.html');
+});
 
 
 const generateCodeVerifier = () => {
@@ -29,7 +43,7 @@ const generateCodeChallenge = (verifier) => {
 const verifiers = {}; // In-memory object to store verifiers keyed by state
 
 const sequelize = new Sequelize('spotify_shuffler', 'postgres', process.env.PSQL_PASSWORD, {
-    host: 'localhost',
+    host: process.env.DB_HOST || 'localhost',
     dialect: 'postgres',
 });
 
@@ -327,6 +341,7 @@ app.post('/api/logout', async (req, res) => {
     res.status(200).send('Logout initiated.');
 });
 
-app.listen(process.env.PORT, () => {
-    console.log(`Server running on port ${process.env.PORT}`);
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`);
 });
