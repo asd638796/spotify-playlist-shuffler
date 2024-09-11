@@ -5,8 +5,7 @@ import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Sequelize, DataTypes } from 'sequelize';
-import path from 'path';
-import { fileURLToPath } from 'url';
+
 
 const logoutTimers = new Map(); // To store logout timers by refresh token
 
@@ -17,16 +16,10 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cookieParser());
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Serve static files from the 'dist' directory
-app.use(express.static('/app/dist/index.html'));
 
-// Catch-all route to serve the frontend
-app.get('*', (req, res) => {
-    res.sendFile('/app/dist/index.html');
-});
+
 
 
 const generateCodeVerifier = () => {
@@ -43,7 +36,7 @@ const generateCodeChallenge = (verifier) => {
 const verifiers = {}; // In-memory object to store verifiers keyed by state
 
 const sequelize = new Sequelize('spotify_shuffler', 'postgres', process.env.PSQL_PASSWORD, {
-    host: process.env.DB_HOST || 'localhost',
+    host:'localhost',
     dialect: 'postgres',
 });
 
