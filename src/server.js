@@ -5,6 +5,8 @@ import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Sequelize, DataTypes } from 'sequelize';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 
 const logoutTimers = new Map(); // To store logout timers by refresh token
@@ -13,14 +15,18 @@ const logoutTimers = new Map(); // To store logout timers by refresh token
 dotenv.config();
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 app.use(bodyParser.json());
 app.use(cookieParser());
 
 
-// Serve static files from the 'dist' directory
+app.use(express.static(path.join(__dirname, '../dist')));
 
-
-
+// Fallback for React Router
+app.get(/'*'/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
 
 const generateCodeVerifier = () => {
     return crypto.randomBytes(32).toString('hex');
@@ -36,7 +42,7 @@ const generateCodeChallenge = (verifier) => {
 const verifiers = {}; // In-memory object to store verifiers keyed by state
 
 const sequelize = new Sequelize('spotify_shuffler', 'postgres', process.env.PSQL_PASSWORD, {
-    host:'localhost',
+    host: 'db',
     dialect: 'postgres',
 });
 
@@ -98,6 +104,7 @@ app.get('/api/callback', async (req, res) => {
                 code,
                 redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
                 code_verifier: verifier,
+                secure: process.env.NODE_ENV === 'production',
             }),
             {
                 headers: {
@@ -124,7 +131,7 @@ app.get('/api/callback', async (req, res) => {
             maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days,
         });
 
-        res.redirect('http://localhost:5173'); // Redirect to the React app
+        res.redirect('http://localhost:3001'); // Redirect to the React app
     } catch (error) {
         console.error('Error during token exchange:', error.response ? error.response.data : error.message);
         res.status(500).send('Failed to authenticate');
@@ -334,6 +341,6 @@ app.post('/api/logout', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });

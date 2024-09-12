@@ -39,10 +39,9 @@ function App() {
     const handleLogout = async () => {
         try {
             await fetch('/api/logout', { method: 'POST' });
-            setAccessToken(null);
             window.location.href = '/api/login';
         } catch (error) {
-            showMessage('error', 'An error occured - please enter a playlist URL');
+            showMessage('error', 'An error occured - please try again');
             return;
         }
     };
@@ -63,6 +62,7 @@ function App() {
             await axios.post('/api/randomize', {
                 playlistId: extractedPlaylistId,
                 numTracks: numTracks,
+                withCredentials: true,
             });
 
             showMessage('success', 'Songs successfully added to queue!');            
