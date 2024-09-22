@@ -4,9 +4,9 @@ import axios from 'axios'
 
 
 function App() {
-    const [playlistId, setPlaylistId] = useState('');
-    const [numTracks, setNumTracks] = useState(10);
-    const [loading, setLoading] = useState(true);
+    const [playlistId, setPlaylistId] = useState<string>('');
+    const [numTracks, setNumTracks] = useState<number>(10);
+    const [loading, setLoading] = useState<boolean>(true);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [messageVisible, setMessageVisible] = useState(false); 
@@ -18,7 +18,7 @@ function App() {
             try {
                 const response = await axios.get('/api/check-token', {withCredentials: true });
                 
-            } catch (error) {
+            } catch (error: any) {
 
                 
 
@@ -40,7 +40,7 @@ function App() {
         try {
             await fetch('/api/logout', { method: 'POST' });
             window.location.href = '/api/login';
-        } catch (error) {
+        } catch (error: any) {
             showMessage('error', 'An error occured - please try again');
             return;
         }
@@ -53,7 +53,7 @@ function App() {
         }
 
         try {
-            const extractedPlaylistId = extractPlaylistId(playlistId);
+            const extractedPlaylistId: string | null = extractPlaylistId(playlistId);
             if (!extractedPlaylistId) {
                 showMessage('error', 'An error occured - invalid playlist URL');
                 return;
@@ -67,7 +67,7 @@ function App() {
 
             showMessage('success', 'Songs successfully added to queue!');            
 
-        } catch (error) {
+        } catch (error: any) {
             if (error.response && error.response.status === 499) {
                 showMessage('error', 'An error occured - ' + error.response.data.error); 
             } else {
@@ -84,7 +84,7 @@ function App() {
         }, 5000); // After 5 seconds, hide the message
     };
 
-    const showMessage = (type, message) => {
+    const showMessage = (type: 'success' | 'error', message: string) => {
         if (type === 'success') {
             setErrorMessage(''); // Clear any error message
             setSuccessMessage(message); // Set the success message
@@ -97,7 +97,7 @@ function App() {
         hideMessageAfterDelay(); // Trigger fade-out after 5 seconds
     };
 
-    function extractPlaylistId(url) {
+    function extractPlaylistId(url: string): string | null {
         const regex = /playlist\/([a-zA-Z0-9]+)(?:\?|$|\/|\&)/;
         const match = url.match(regex);
         return match ? match[1] : null;

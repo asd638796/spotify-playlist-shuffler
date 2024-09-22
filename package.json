@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "start": "nodemon src/server.js" 
+    "start": "nodemon src/server.js"
   },
   "dependencies": {
     "axios": "^1.7.7",
@@ -23,7 +23,9 @@
     "sequelize": "^6.37.3"
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
+    "@types/axios": "^0.9.36",
+    "@types/node": "^22.5.5",
+    "@types/react": "^18.3.8",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^8.57.0",
@@ -31,6 +33,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
     "nodemon": "^3.1.4",
+    "typescript": "^5.6.2",
     "vite": "^5.3.1"
   }
 }
